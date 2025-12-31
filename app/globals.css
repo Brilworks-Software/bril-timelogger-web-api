@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply font-sans;
+    background-color: #FFFFFF; /* White */
+  }
+
+  body {
+    background-color: #FFFFFF; /* White */
+    color: #2C3E50; /* Dark Gray/Charcoal for text */
+  }
+
+  h1 {
+    @apply text-xl font-medium leading-tight;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+  }
+
+  h2 {
+    @apply text-lg font-medium leading-tight;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+  }
+
+  h3 {
+    @apply text-base font-medium leading-tight;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+  }
+
+  p {
+    @apply text-sm leading-relaxed;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200;
+    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  .btn-primary {
+    @apply text-white focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    background-color: #0080FF; /* Bright Blue */
+  }
+  
+  .btn-primary:hover {
+    background-color: #0066CC;
+  }
+  
+  .btn-secondary {
+    @apply border-2 hover:text-white focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    background-color: #FFFFFF; /* White */
+    border-color: #0080FF;
+    color: #0080FF;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #0080FF;
+    color: #FFFFFF;
+  }
+  
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-danger-600 focus:ring-2 focus:ring-danger-500 focus:ring-offset-2;
+  }
+  
+  .input {
+    @apply block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm;
+    background-color: #FFFFFF; /* White */
+    border-color: #BDBDBD;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+    min-height: 36px;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .input:focus {
+    border-color: #0080FF;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 128, 255, 0.2);
+  }
+  
+  .label {
+    @apply block text-sm font-medium mb-1;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+  }
+
+  .card {
+    @apply rounded-lg shadow-sm p-4;
+    background-color: #FFFFFF; /* White */
+    border: 1px solid #E0E0E0;
+  }
+
+  .header {
+    @apply h-14 flex items-center justify-between px-4;
+    background-color: #FFFFFF; /* White */
+    border-bottom: 1px solid #E0E0E0;
+    color: #2C3E50; /* Dark Gray/Charcoal */
+  }
+
+  .sidebar {
+    @apply fixed inset-y-0 left-0 w-48 text-white transition-all duration-300;
+    background: linear-gradient(180deg, #0080FF 0%, #0A1929 100%); /* Blue to Dark Navy gradient */
+    border-right: 1px solid #1A1A1A;
+  }
+
+  .main-content {
+    @apply ml-48 p-3 min-h-screen rounded-lg;
+    background-color: #FAFAFA; /* Light Gray */
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .loading-spinner {
+    @apply animate-spin rounded-full h-10 w-10 border-4 border-secondary border-t-transparent;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .date-picker-wrapper {
+    height: 40px;
+  }
+
+  .date-picker-wrapper .react-datepicker-wrapper {
+    height: 100%;
+  }
+
+  .date-picker-wrapper .react-datepicker-wrapper input {
+    height: 100%;
+    padding: 8.5px 14px;
+    border: 1px solid #BDBDBD;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: #FFFFFF;
+    color: #2C3E50;
+  }
+
+  .date-picker-wrapper .react-datepicker-wrapper input:focus {
+    border-color: #0080FF; /* Bright Blue */
+    outline: none;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #F5F5F5; /* Light Gray */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #0080FF; /* Bright Blue */
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #0066CC;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+}
+

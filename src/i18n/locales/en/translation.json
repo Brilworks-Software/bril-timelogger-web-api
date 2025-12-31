@@ -1,0 +1,5 @@
+{
+  "reports": {
+    "dateRangeError": "Date range cannot exceed 31 days"
+  }
+} 
