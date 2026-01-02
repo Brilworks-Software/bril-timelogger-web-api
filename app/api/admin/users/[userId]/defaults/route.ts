@@ -5,18 +5,21 @@ import { getAuthUser, requireAdmin } from '@/lib/auth';
 // GET - Get default project and task for a user
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const supabase = createServerClient();
 
     const { data: userData, error } = await supabase
       .from('users')
       .select('id, default_project_id, default_task_id')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single();
 
     if (error) {
@@ -93,11 +96,14 @@ export async function GET(
 // PUT - Set default project and/or task for a user
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const body = await request.json();
     const { defaultProjectId, defaultTaskId } = body;
@@ -108,7 +114,7 @@ export async function PUT(
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single();
 
     if (userError || !userData) {
@@ -170,7 +176,7 @@ export async function PUT(
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
       .update(updateData)
-      .eq('id', params.userId)
+      .eq('id', userId)
       .select('id, default_project_id, default_task_id')
       .single();
 

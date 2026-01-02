@@ -5,11 +5,14 @@ import { getAuthUser, requireAdmin } from '@/lib/auth';
 // GET - Get a single task by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { id } = await params;
 
     const supabase = createServerClient();
 
@@ -22,7 +25,7 @@ export async function GET(
           name
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error) {
@@ -58,11 +61,14 @@ export async function GET(
 // PUT - Update a task
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { id } = await params;
 
     const body = await request.json();
     const { name, description, projectId, isActive } = body;
@@ -93,7 +99,7 @@ export async function PUT(
     const { data: task, error } = await supabase
       .from('tasks')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select(`
         *,
         projects (
@@ -136,18 +142,21 @@ export async function PUT(
 // DELETE - Delete a task
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { id } = await params;
 
     const supabase = createServerClient();
 
     const { error } = await supabase
       .from('tasks')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting task:', error);

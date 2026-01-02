@@ -14,6 +14,19 @@ interface LoginResponse {
 }
 
 export function useLogin() {
+  // Only use mutation if we're in the browser (not during SSR/build)
+  if (typeof window === 'undefined') {
+    // Return a mock mutation during SSR/build
+    return {
+      mutate: () => {},
+      status: 'idle' as const,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      data: undefined,
+    };
+  }
+
   const mutation = useMutation<
     LoginResponse,
     Error,

@@ -22,7 +22,7 @@ export interface LoginCredentials {
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: '/api', // Use the Vite proxy
+  baseURL: '/api', // Next.js API routes
   headers: {
     'Content-Type': 'application/json',
   },

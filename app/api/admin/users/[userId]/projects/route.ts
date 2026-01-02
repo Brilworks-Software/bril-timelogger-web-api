@@ -5,11 +5,14 @@ import { getAuthUser, requireAdmin } from '@/lib/auth';
 // GET - Get all projects assigned to a user
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const supabase = createServerClient();
 
@@ -27,7 +30,7 @@ export async function GET(
           updated_at
         )
       `)
-      .eq('user_id', params.userId)
+      .eq('user_id', userId)
       .order('assigned_at', { ascending: false });
 
     if (error) {
@@ -57,11 +60,14 @@ export async function GET(
 // POST - Assign projects to a user
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const body = await request.json();
     const { projectIds } = body;
@@ -79,7 +85,7 @@ export async function POST(
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single();
 
     if (userError || !userData) {
@@ -115,7 +121,7 @@ export async function POST(
     const { error: deleteError } = await supabase
       .from('user_projects')
       .delete()
-      .eq('user_id', params.userId);
+      .eq('user_id', userId);
 
     if (deleteError) {
       console.error('Error removing existing assignments:', deleteError);
@@ -128,7 +134,7 @@ export async function POST(
     // Add new assignments
     if (projectIds.length > 0) {
       const assignments = projectIds.map((projectId: string) => ({
-        user_id: params.userId,
+        user_id: userId,
         project_id: projectId,
       }));
 
@@ -160,7 +166,7 @@ export async function POST(
           updated_at
         )
       `)
-      .eq('user_id', params.userId);
+      .eq('user_id', userId);
 
     if (fetchError) {
       console.error('Error fetching updated assignments:', fetchError);

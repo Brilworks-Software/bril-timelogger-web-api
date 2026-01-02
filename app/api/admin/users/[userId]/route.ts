@@ -6,11 +6,14 @@ import bcrypt from 'bcryptjs';
 // GET - Get a single user with project/task assignments
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const supabase = createServerClient();
 
@@ -18,7 +21,7 @@ export async function GET(
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, username, name, email, role, account_non_locked, default_project_id, default_task_id, created_at, updated_at')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single();
 
     if (userError) {
@@ -50,7 +53,7 @@ export async function GET(
           updated_at
         )
       `)
-      .eq('user_id', params.userId)
+      .eq('user_id', userId)
       .order('assigned_at', { ascending: false });
 
     // Get tasks from assigned projects (tasks are automatically available through projects)
@@ -134,11 +137,14 @@ export async function GET(
 // PUT - Update a user with optional project/task assignments
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const body = await request.json();
     const { username, password, name, email, role, accountNonLocked, companyId, projectIds } = body;
@@ -149,7 +155,7 @@ export async function PUT(
     const { data: existingUser, error: userError } = await supabase
       .from('users')
       .select('id, username')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single();
 
     if (userError || !existingUser) {
@@ -202,7 +208,7 @@ export async function PUT(
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
       .update(updateData)
-      .eq('id', params.userId)
+      .eq('id', userId)
       .select('id, username, name, email, role, account_non_locked, created_at, updated_at')
       .single();
 
@@ -220,7 +226,7 @@ export async function PUT(
       await supabase
         .from('user_projects')
         .delete()
-        .eq('user_id', params.userId);
+        .eq('user_id', userId);
 
       // Add new assignments
       if (Array.isArray(projectIds) && projectIds.length > 0) {
@@ -232,7 +238,7 @@ export async function PUT(
 
         if (projects && projects.length > 0) {
           const assignments = projects.map((project: any) => ({
-            user_id: params.userId,
+            user_id: userId,
             project_id: project.id,
           }));
 
@@ -257,7 +263,7 @@ export async function PUT(
           is_active
         )
       `)
-      .eq('user_id', params.userId);
+      .eq('user_id', userId);
 
     const { data: userTasks } = await supabase
       .from('user_tasks')
@@ -276,7 +282,7 @@ export async function PUT(
           )
         )
       `)
-      .eq('user_id', params.userId);
+      .eq('user_id', userId);
 
     // Get default project and task details
     let defaultProject = null;
@@ -335,11 +341,14 @@ export async function PUT(
 // DELETE - Delete a user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAdmin(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { userId } = await params;
 
     const supabase = createServerClient();
 
@@ -347,7 +356,7 @@ export async function DELETE(
     const { data: existingUser, error: userError } = await supabase
       .from('users')
       .select('id, username')
-      .eq('id', params.userId)
+      .eq('id', userId)
       .single();
 
     if (userError || !existingUser) {
@@ -358,7 +367,7 @@ export async function DELETE(
     }
 
     // Prevent deleting yourself
-    if (user.userId === params.userId) {
+    if (user.userId === userId) {
       return NextResponse.json(
         { message: 'You cannot delete your own account' },
         { status: 400 }
@@ -369,7 +378,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from('users')
       .delete()
-      .eq('id', params.userId);
+      .eq('id', userId);
 
     if (deleteError) {
       console.error('Error deleting user:', deleteError);
@@ -381,7 +390,7 @@ export async function DELETE(
 
     return NextResponse.json({
       message: 'User deleted successfully',
-      id: params.userId,
+      id: userId,
     });
   } catch (error: any) {
     console.error('Delete user error:', error);

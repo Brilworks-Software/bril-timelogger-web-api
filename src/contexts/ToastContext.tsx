@@ -10,6 +10,12 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
+    // Return a no-op function during SSR/build to prevent errors
+    if (typeof window === 'undefined') {
+      return {
+        showToast: () => {},
+      };
+    }
     throw new Error('useToast must be used within a ToastProvider');
   }
   return context;
