@@ -54,7 +54,7 @@ export async function POST(
     // Get session and verify it belongs to user
     const { data: session, error: sessionError } = await supabase
       .from('tracker_sessions')
-      .select('id, user_id, start_time, session_status')
+      .select('id, user_id, start_time, session_status, idle_duration')
       .eq('id', sessionId)
       .eq('user_id', validation.user.id)
       .single();
@@ -103,6 +103,22 @@ export async function POST(
     const startTime = new Date(session.start_time);
     const totalDuration = new Date(endTime).getTime() - startTime.getTime();
 
+    // Get total pause duration for this session
+    const { data: pauses, error: pausesError } = await supabase
+      .from('tracker_pauses')
+      .select('duration')
+      .eq('session_id', sessionId)
+      .not('duration', 'is', null);
+
+    let totalPauseDuration = 0;
+    if (!pausesError && pauses) {
+      totalPauseDuration = pauses.reduce((sum, pause) => sum + (pause.duration || 0), 0);
+    }
+
+    // Calculate active_duration: total_duration - idle_duration - total_pause_duration
+    const idleDuration = session.idle_duration || 0;
+    const activeDuration = Math.max(0, totalDuration - idleDuration - totalPauseDuration);
+
     // Update session
     const { data: updatedSession, error: updateError } = await supabase
       .from('tracker_sessions')
@@ -111,6 +127,7 @@ export async function POST(
         end_time: endTime,
         logout_reason: reason,
         total_duration: totalDuration,
+        active_duration: activeDuration,
       })
       .eq('id', sessionId)
       .select(`

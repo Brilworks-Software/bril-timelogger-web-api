@@ -64,10 +64,41 @@ export async function POST(
       );
     }
 
-    // Update session updated_at (heartbeat)
+    // Calculate current durations for active sessions
+    let activeDuration = session.active_duration || 0;
+    let totalDuration = session.total_duration || 0;
+
+    if (session.session_status === 'ACTIVE') {
+      // Calculate current total duration from start_time to now
+      const startTime = new Date(session.start_time);
+      const currentTime = new Date();
+      totalDuration = currentTime.getTime() - startTime.getTime();
+
+      // Get total pause duration for this session
+      const { data: pauses, error: pausesError } = await supabase
+        .from('tracker_pauses')
+        .select('duration')
+        .eq('session_id', sessionId)
+        .not('duration', 'is', null);
+
+      let totalPauseDuration = 0;
+      if (!pausesError && pauses) {
+        totalPauseDuration = pauses.reduce((sum, pause) => sum + (pause.duration || 0), 0);
+      }
+
+      // Calculate active_duration: total_duration - idle_duration - total_pause_duration
+      const idleDuration = session.idle_duration || 0;
+      activeDuration = Math.max(0, totalDuration - idleDuration - totalPauseDuration);
+    }
+
+    // Update session updated_at and calculated durations (heartbeat)
     const { data: updatedSession, error: updateError } = await supabase
       .from('tracker_sessions')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ 
+        updated_at: new Date().toISOString(),
+        total_duration: totalDuration,
+        active_duration: activeDuration,
+      })
       .eq('id', sessionId)
       .select(`
         id,

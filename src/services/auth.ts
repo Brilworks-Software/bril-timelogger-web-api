@@ -1,4 +1,10 @@
 import axios from 'axios';
+import { loadingManager } from '../utils/loadingManager';
+
+// Delay function to add minimum delay to requests
+const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
 
 export interface User {
   id: string;
@@ -23,20 +29,41 @@ const api = axios.create({
 });
 
 // Add request interceptor to add token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    // Ensure token is properly formatted
-    const cleanToken = token.replace(/^"|"$/g, ''); // Remove any quotes
-    config.headers.Authorization = `Bearer ${cleanToken}`;
+api.interceptors.request.use(
+  async (config) => {
+    // Start loading
+    loadingManager.startRequest();
+
+    // Add delay before making the request
+    const delayMs = loadingManager.getDelay();
+    await delay(delayMs);
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Ensure token is properly formatted
+      const cleanToken = token.replace(/^"|"$/g, ''); // Remove any quotes
+      config.headers.Authorization = `Bearer ${cleanToken}`;
+    }
+    return config;
+  },
+  (error) => {
+    // End loading on request error
+    loadingManager.endRequest();
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
 // Add response interceptor to handle token expiration
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // End loading on successful response
+    loadingManager.endRequest();
+    return response;
+  },
   async (error) => {
+    // End loading on error response
+    loadingManager.endRequest();
+
     if (error.response?.status === 401) {
       // Token expired or invalid
       localStorage.removeItem('token');

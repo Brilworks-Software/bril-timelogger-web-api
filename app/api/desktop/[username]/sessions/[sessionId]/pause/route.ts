@@ -54,7 +54,7 @@ export async function POST(
     // Verify session exists and is active
     const { data: session, error: sessionError } = await supabase
       .from('tracker_sessions')
-      .select('id, user_id, session_status')
+      .select('id, user_id, session_status, start_time, idle_duration')
       .eq('id', sessionId)
       .eq('user_id', validation.user.id)
       .single();
@@ -73,13 +73,33 @@ export async function POST(
       );
     }
 
+    // Calculate current total duration from start_time to now (before pause)
+    const startTime = new Date(session.start_time);
+    const pauseStartTime = new Date();
+    const totalDuration = pauseStartTime.getTime() - startTime.getTime();
+
+    // Get total pause duration for this session (excluding the pause we're about to create)
+    const { data: existingPauses, error: existingPausesError } = await supabase
+      .from('tracker_pauses')
+      .select('duration')
+      .eq('session_id', sessionId)
+      .not('duration', 'is', null);
+
+    let totalPauseDuration = 0;
+    if (!existingPausesError && existingPauses) {
+      totalPauseDuration = existingPauses.reduce((sum, p) => sum + (p.duration || 0), 0);
+    }
+
+    // Calculate active_duration up to this point: total_duration - idle_duration - total_pause_duration
+    const idleDuration = session.idle_duration || 0;
+    const activeDuration = Math.max(0, totalDuration - idleDuration - totalPauseDuration);
+
     // Create pause record
-    const pauseStartTime = new Date().toISOString();
     const { data: pause, error: pauseError } = await supabase
       .from('tracker_pauses')
       .insert({
         session_id: sessionId,
-        start_time: pauseStartTime,
+        start_time: pauseStartTime.toISOString(),
         reason: reason,
         duration: 0,
       })
@@ -94,10 +114,14 @@ export async function POST(
       );
     }
 
-    // Update session status to PAUSED
+    // Update session status to PAUSED and update active_duration
     await supabase
       .from('tracker_sessions')
-      .update({ session_status: 'PAUSED' })
+      .update({ 
+        session_status: 'PAUSED',
+        total_duration: totalDuration,
+        active_duration: activeDuration,
+      })
       .eq('id', sessionId);
 
     return NextResponse.json({
