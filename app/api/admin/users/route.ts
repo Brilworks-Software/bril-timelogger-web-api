@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     requireAdmin(user);
 
     const body = await request.json();
-    const { username, password, name, email, role, accountNonLocked, companyId, projectIds, defaultProjectId, defaultTaskId } = body;
+    const { username, password, name, email, role, accountNonLocked, companyId, projectIds } = body;
 
     if (!username || !password || !name) {
       return NextResponse.json(
@@ -120,57 +120,6 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Validate default project/task if provided
-    if (defaultProjectId) {
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('id', defaultProjectId)
-        .eq('is_active', true)
-        .single();
-
-      if (projectError || !project) {
-        return NextResponse.json(
-          { message: 'Default project not found or inactive' },
-          { status: 404 }
-        );
-      }
-    }
-
-    if (defaultTaskId) {
-      const { data: task, error: taskError } = await supabase
-        .from('tasks')
-        .select('id, project_id')
-        .eq('id', defaultTaskId)
-        .eq('is_active', true)
-        .single();
-
-      if (taskError || !task) {
-        return NextResponse.json(
-          { message: 'Default task not found or inactive' },
-          { status: 404 }
-        );
-      }
-
-      // Verify default task belongs to default project (if default project is set)
-      if (defaultProjectId && task.project_id !== defaultProjectId) {
-        return NextResponse.json(
-          { message: 'Default task must belong to the default project' },
-          { status: 400 }
-        );
-      }
-
-      // If no default project but default task is set, verify task belongs to one of the assigned projects
-      if (!defaultProjectId && projectIds && projectIds.length > 0) {
-        if (!projectIds.includes(task.project_id)) {
-          return NextResponse.json(
-            { message: 'Default task must belong to one of the assigned projects' },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
     // Create user
     const insertData: any = {
       username,
@@ -179,8 +128,6 @@ export async function POST(request: NextRequest) {
       email: email || null,
       role: role || 'user',
       account_non_locked: accountNonLocked !== undefined ? accountNonLocked : true,
-      default_project_id: defaultProjectId || null,
-      default_task_id: defaultTaskId || null,
     };
     
     // Only include company_id if the column exists (migration 003 has been run)
@@ -192,7 +139,7 @@ export async function POST(request: NextRequest) {
     const { data: newUser, error: userError } = await supabase
       .from('users')
       .insert(insertData)
-      .select('id, username, name, email, role, account_non_locked, default_project_id, default_task_id')
+      .select('id, username, name, email, role, account_non_locked')
       .single();
 
     if (userError) {

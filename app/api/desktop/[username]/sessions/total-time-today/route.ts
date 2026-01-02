@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { getAuthUser, requireAuth } from '@/lib/auth';
+import { authenticateDesktopRequest } from '@/lib/auth/desktop';
 
 // GET /api/desktop/{username}/sessions/total-time-today - Get total time tracked today
 export async function GET(
@@ -8,30 +8,22 @@ export async function GET(
   { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const user = await getAuthUser(request);
-    requireAuth(user);
-
     const { searchParams } = new URL(request.url);
     const timezone = searchParams.get('timezone') || 'UTC';
-
-    const supabase = createServerClient();
 
     // Await params (Next.js 15+ requirement)
     const { username } = await params;
 
-    // Get user
-    const { data: dbUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !dbUser) {
+    // Authenticate with fallback support for expired tokens (no sessionId needed for read operation)
+    const authResult = await authenticateDesktopRequest(request, username, null);
+    if (!authResult.success) {
       return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
+        { message: authResult.error || 'Authentication failed' },
+        { status: authResult.status || 401 }
       );
     }
+
+    const supabase = createServerClient();
 
     // Get start and end of today in the specified timezone
     const now = new Date();
@@ -44,7 +36,7 @@ export async function GET(
     const { data: sessions, error: sessionsError } = await supabase
       .from('tracker_sessions')
       .select('total_duration, active_duration, idle_duration')
-      .eq('user_id', dbUser.id)
+      .eq('user_id', authResult.user.id)
       .gte('start_time', startOfToday.toISOString())
       .lte('start_time', endOfToday.toISOString());
 

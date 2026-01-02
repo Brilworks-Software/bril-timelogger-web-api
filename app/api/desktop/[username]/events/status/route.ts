@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { getAuthUser, requireAuth } from '@/lib/auth';
+import { authenticateDesktopRequest } from '@/lib/auth/desktop';
 
 // GET /api/desktop/{username}/events/status - Get session status
 export async function GET(
@@ -8,9 +8,6 @@ export async function GET(
   { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const user = await getAuthUser(request);
-    requireAuth(user);
-
     // Await params (Next.js 15+ requirement)
     const { username } = await params;
 
@@ -24,21 +21,16 @@ export async function GET(
       );
     }
 
-    const supabase = createServerClient();
-
-    // Get user
-    const { data: dbUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !dbUser) {
+    // Authenticate with fallback support for expired tokens
+    const authResult = await authenticateDesktopRequest(request, username, sessionId);
+    if (!authResult.success) {
       return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
+        { message: authResult.error || 'Authentication failed' },
+        { status: authResult.status || 401 }
       );
     }
+
+    const supabase = createServerClient();
 
     // Verify session belongs to user
     const { data: session, error: sessionError } = await supabase
@@ -52,7 +44,7 @@ export async function GET(
         updated_at
       `)
       .eq('id', sessionId)
-      .eq('user_id', dbUser.id)
+      .eq('user_id', authResult.user.id)
       .single();
 
     if (sessionError || !session) {

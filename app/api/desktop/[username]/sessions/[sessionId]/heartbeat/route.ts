@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { getAuthUser, requireAuth } from '@/lib/auth';
+import { authenticateDesktopRequest } from '@/lib/auth/desktop';
 
 // POST /api/desktop/{username}/sessions/{sessionId}/heartbeat - Update session heartbeat
 export async function POST(
@@ -8,27 +8,19 @@ export async function POST(
   { params }: { params: Promise<{ username: string; sessionId: string }> }
 ) {
   try {
-    const user = await getAuthUser(request);
-    requireAuth(user);
-
     // Await params (Next.js 15+ requirement)
     const { username, sessionId } = await params;
 
-    const supabase = createServerClient();
-
-    // Get user
-    const { data: dbUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !dbUser) {
+    // Authenticate with fallback support for expired tokens
+    const authResult = await authenticateDesktopRequest(request, username, sessionId);
+    if (!authResult.success) {
       return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
+        { message: authResult.error || 'Authentication failed' },
+        { status: authResult.status || 401 }
       );
     }
+
+    const supabase = createServerClient();
 
     // Verify session belongs to user
     const { data: session, error: sessionError } = await supabase
@@ -54,7 +46,7 @@ export async function POST(
         )
       `)
       .eq('id', sessionId)
-      .eq('user_id', dbUser.id)
+      .eq('user_id', authResult.user.id)
       .single();
 
     if (sessionError || !session) {

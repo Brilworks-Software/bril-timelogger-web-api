@@ -30,30 +30,30 @@ const App: React.FC = () => {
           <CssBaseline />
           <QueryClientProvider client={queryClient}>
             <LoadingProvider>
-              <ToastProvider>
-                <Router>
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route element={<DashboardLayout />}>
-                      {/* Time Tracker's Summary */}
-                      <Route path="/time-tracking" element={<TimeTrackingSummary />}>
-                        <Route index element={<TimeTrackingConditional />} />
-                        <Route path="summary" element={<TimeTrackingSummaryDashboard />} />
-                        <Route path="screenshots" element={<UserScreenshots />} />
-                        <Route path="users" element={<UserList />} />
-                        <Route path="activity" element={<UserActivity />} />
-                        <Route path="reports" element={<ReportsTab />} />
-                      </Route>
-
-                      {/* Users */}
-                      <Route path="/users" element={<Users />} />
-
-                      {/* Default redirect to dashboard */}
-                      <Route path="/" element={<Navigate to="/time-tracking" replace />} />
+            <ToastProvider>
+              <Router>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route element={<DashboardLayout />}>
+                    {/* Time Tracker's Summary */}
+                    <Route path="/time-tracking" element={<TimeTrackingSummary />}>
+                      <Route index element={<TimeTrackingConditional />} />
+                      <Route path="summary" element={<TimeTrackingSummaryDashboard />} />
+                      <Route path="screenshots" element={<UserScreenshots />} />
+                      <Route path="users" element={<UserList />} />
+                      <Route path="activity" element={<UserActivity />} />
+                      <Route path="reports" element={<ReportsTab />} />
                     </Route>
-                  </Routes>
-                </Router>
-              </ToastProvider>
+
+                    {/* Users */}
+                    <Route path="/users" element={<Users />} />
+
+                    {/* Default redirect to dashboard */}
+                    <Route path="/" element={<Navigate to="/time-tracking" replace />} />
+                  </Route>
+                </Routes>
+              </Router>
+            </ToastProvider>
             </LoadingProvider>
           </QueryClientProvider>
         </ThemeProvider>

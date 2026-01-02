@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { getAuthUser, requireAuth } from '@/lib/auth';
-
-// Helper function to validate desktop user
-async function validateDesktopUser(username: string) {
-  const supabase = createServerClient();
-  
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('id, username, account_non_locked')
-    .eq('username', username)
-    .single();
-
-  if (userError || !user || !user.account_non_locked) {
-    return { valid: false, error: 'User not found or account is locked', status: 403 };
-  }
-
-  return { valid: true, user };
-}
+import { authenticateDesktopRequest } from '@/lib/auth/desktop';
 
 // POST /api/desktop/{username}/sessions/{sessionId}/resume - Resume a paused session
 export async function POST(
@@ -25,19 +8,19 @@ export async function POST(
   { params }: { params: Promise<{ username: string; sessionId: string }> }
 ) {
   try {
-    const user = await getAuthUser(request);
-    requireAuth(user);
-
     // Await params (Next.js 15+ requirement)
     const { username, sessionId } = await params;
 
-    const validation = await validateDesktopUser(username);
-    if (!validation.valid) {
+    // Authenticate with fallback support for expired tokens
+    const authResult = await authenticateDesktopRequest(request, username, sessionId);
+    if (!authResult.success) {
       return NextResponse.json(
-        { message: validation.error },
-        { status: validation.status || 403 }
+        { message: authResult.error || 'Authentication failed' },
+        { status: authResult.status || 401 }
       );
     }
+
+    const validation = { valid: true, user: authResult.user };
 
     const supabase = createServerClient();
 

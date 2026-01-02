@@ -61,12 +61,8 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [userProjects, setUserProjects] = useState<UserProject[]>([]);
-  const [defaults, setDefaults] = useState<UserDefaults | null>(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
-  const [defaultProjectId, setDefaultProjectId] = useState<string>('');
-  const [defaultTaskId, setDefaultTaskId] = useState<string>('');
   const [loadingData, setLoadingData] = useState(false);
 
   // Load all projects and tasks
@@ -81,23 +77,17 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
     
     setLoadingData(true);
     try {
-      // Load all active projects and tasks
-      const [projectsRes, tasksRes, userProjectsRes, defaultsRes] = await Promise.all([
+      // Load all active projects and user's assigned projects
+      const [projectsRes, userProjectsRes] = await Promise.all([
         getProjects(0, 1000, '', 'name,asc', true),
-        getTasks(0, 1000, '', 'name,asc', undefined, true),
-        getUserProjects(user.id),
-        getUserDefaults(user.id)
+        getUserProjects(user.id)
       ]);
 
       setProjects(projectsRes.content);
-      setTasks(tasksRes.content);
       setUserProjects(userProjectsRes);
-      setDefaults(defaultsRes);
 
       // Set selected items
       setSelectedProjectIds(userProjectsRes.map(up => up.projects.id));
-      setDefaultProjectId(defaultsRes.defaultProjectId || '');
-      setDefaultTaskId(defaultsRes.defaultTaskId || '');
     } catch (error) {
       console.error('Error loading data:', error);
       showToast('Error loading assignment data', 'error');
@@ -112,14 +102,7 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
         ? prev.filter(id => id !== projectId)
         : [...prev, projectId]
     );
-    // Clear default project if unselected
-    if (defaultProjectId === projectId) {
-      setDefaultProjectId('');
-      setDefaultTaskId(''); // Also clear default task
-    }
   };
-
-  // Tasks are automatically available through projects - no need to toggle
 
   const handleSave = async () => {
     if (!user) return;
@@ -128,12 +111,6 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
     try {
       // Update project assignments (tasks are automatically available through projects)
       await assignProjectsToUser(user.id, selectedProjectIds);
-
-      // Update defaults (only if selected)
-      await setUserDefaults(user.id, {
-        defaultProjectId: defaultProjectId || null,
-        defaultTaskId: defaultTaskId || null
-      });
 
       showToast('Assignments updated successfully', 'success');
       onClose();
@@ -144,11 +121,6 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
       setLoading(false);
     }
   };
-
-  // Filter tasks for default task dropdown (from default project)
-  const defaultTaskOptions = tasks.filter(task => 
-    defaultProjectId && task.project_id === defaultProjectId
-  );
 
   if (!user) return null;
 
@@ -175,7 +147,7 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6">
-            {t('users.assignProjectsTasks', 'Assign Projects & Tasks')} - {user.name}
+            {t('users.assignProjects', 'Assign Projects')} - {user.name}
           </Typography>
           <IconButton onClick={onClose}>
             <CloseIcon />
@@ -213,54 +185,6 @@ const UserAssignmentModal: React.FC<UserAssignmentModalProps> = ({ open, onClose
                   ))
                 )}
               </Box>
-            </Box>
-
-            {/* Default Project */}
-            <Box sx={{ mb: 3 }}>
-              <FormControl fullWidth>
-                <InputLabel>{t('users.defaultProject', 'Default Project')}</InputLabel>
-                <Select
-                  value={defaultProjectId}
-                  onChange={(e) => {
-                    setDefaultProjectId(e.target.value);
-                    setDefaultTaskId(''); // Reset default task when project changes
-                  }}
-                  label={t('users.defaultProject', 'Default Project')}
-                >
-                  <MenuItem value="">
-                    <em>{t('users.none', 'None')}</em>
-                  </MenuItem>
-                  {projects
-                    .filter(p => selectedProjectIds.includes(p.id))
-                    .map(project => (
-                      <MenuItem key={project.id} value={project.id}>
-                        {project.name}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
-            </Box>
-
-            {/* Default Task */}
-            <Box sx={{ mb: 3 }}>
-              <FormControl fullWidth>
-                <InputLabel>{t('users.defaultTask', 'Default Task')}</InputLabel>
-                <Select
-                  value={defaultTaskId}
-                  onChange={(e) => setDefaultTaskId(e.target.value)}
-                  label={t('users.defaultTask', 'Default Task')}
-                  disabled={!defaultProjectId}
-                >
-                  <MenuItem value="">
-                    <em>{t('users.none', 'None')}</em>
-                  </MenuItem>
-                  {defaultTaskOptions.map(task => (
-                    <MenuItem key={task.id} value={task.id}>
-                      {task.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                 {t('users.tasksAutoAssigned', 'All tasks from assigned projects are automatically available')}
               </Typography>
@@ -306,11 +230,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
     accountNonLocked: true,
     companyId: '' as string | number,
     projectIds: [] as string[],
-    defaultProjectId: '',
-    defaultTaskId: '',
   });
   const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
@@ -329,8 +250,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
           accountNonLocked: true,
           companyId: '',
           projectIds: [],
-          defaultProjectId: '',
-          defaultTaskId: '',
         });
       }
       loadProjectsAndTasks();
@@ -351,8 +270,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
         accountNonLocked: userData.accountNonLocked,
         companyId: userData.companyId || '',
         projectIds: userData.projects?.map((p: any) => p.projects.id) || [],
-        defaultProjectId: userData.defaultProjectId || '',
-        defaultTaskId: userData.defaultTaskId || '',
       });
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -365,14 +282,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
   const loadProjectsAndTasks = async () => {
     setLoadingData(true);
     try {
-      const [projectsRes, tasksRes] = await Promise.all([
-        getProjects(0, 1000, '', 'name,asc', true),
-        getTasks(0, 1000, '', 'name,asc', undefined, true),
-      ]);
+      const projectsRes = await getProjects(0, 1000, '', 'name,asc', true);
       setProjects(projectsRes.content);
-      setTasks(tasksRes.content);
     } catch (error) {
-      console.error('Error loading projects/tasks:', error);
+      console.error('Error loading projects:', error);
     } finally {
       setLoadingData(false);
     }
@@ -394,8 +307,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
         accountNonLocked: formData.accountNonLocked,
         companyId: formData.companyId ? (typeof formData.companyId === 'string' ? parseInt(formData.companyId, 10) : formData.companyId) : null,
         projectIds: formData.projectIds,
-        defaultProjectId: formData.defaultProjectId || undefined,
-        defaultTaskId: formData.defaultTaskId || undefined,
       };
 
       if (formData.password) {
@@ -419,15 +330,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
     }
   };
 
-  // Get all tasks from assigned projects (tasks are automatically available through projects)
-  const availableTasks = tasks.filter(task => 
-    formData.projectIds.includes(task.project_id)
-  );
-
-  // Default task must be from the default project
-  const defaultTaskOptions = tasks.filter(task => 
-    formData.defaultProjectId && task.project_id === formData.defaultProjectId
-  );
 
   return (
     <Modal open={open} onClose={onClose} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -472,41 +374,16 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, onClose, user, onSa
                     if (e.target.checked) {
                       setFormData({ ...formData, projectIds: [...formData.projectIds, project.id] });
                     } else {
-                      setFormData({ ...formData, projectIds: formData.projectIds.filter(id => id !== project.id), defaultProjectId: formData.defaultProjectId === project.id ? '' : formData.defaultProjectId });
+                      setFormData({ ...formData, projectIds: formData.projectIds.filter(id => id !== project.id) });
                     }
                   }} />}
                   label={project.name}
                 />
               ))}
             </Box>
-
-            <FormControl fullWidth>
-              <InputLabel>{t('users.defaultProject', 'Default Project')}</InputLabel>
-              <Select value={formData.defaultProjectId} onChange={(e) => setFormData({ ...formData, defaultProjectId: e.target.value, defaultTaskId: '' })} label={t('users.defaultProject', 'Default Project')}>
-                <MenuItem value=""><em>{t('users.none', 'None')}</em></MenuItem>
-                {projects.filter(p => formData.projectIds.includes(p.id)).map(project => (
-                  <MenuItem key={project.id} value={project.id}>{project.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel>{t('users.defaultTask', 'Default Task')}</InputLabel>
-              <Select 
-                value={formData.defaultTaskId} 
-                onChange={(e) => setFormData({ ...formData, defaultTaskId: e.target.value })} 
-                label={t('users.defaultTask', 'Default Task')} 
-                disabled={!formData.defaultProjectId}
-              >
-                <MenuItem value=""><em>{t('users.none', 'None')}</em></MenuItem>
-                {defaultTaskOptions.map(task => (
-                  <MenuItem key={task.id} value={task.id}>{task.name}</MenuItem>
-                ))}
-              </Select>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                {t('users.tasksAutoAssigned', 'All tasks from assigned projects are automatically available')}
-              </Typography>
-            </FormControl>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              {t('users.tasksAutoAssigned', 'All tasks from assigned projects are automatically available')}
+            </Typography>
 
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
               <Button onClick={onClose} disabled={loading}>{t('common.cancel', 'Cancel')}</Button>

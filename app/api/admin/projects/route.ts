@@ -112,6 +112,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Automatically create a default task for the new project
+    const { data: defaultTask, error: taskError } = await supabase
+      .from('tasks')
+      .insert({
+        name: 'Default',
+        description: 'Default task for ' + name,
+        project_id: project.id,
+        is_active: isActive !== undefined ? isActive : true,
+      })
+      .select()
+      .single();
+
+    if (taskError) {
+      console.error('Error creating default task:', taskError);
+      // Don't fail the project creation if task creation fails, just log it
+    }
+
     return NextResponse.json(project, { status: 201 });
   } catch (error: any) {
     console.error('Projects POST error:', error);

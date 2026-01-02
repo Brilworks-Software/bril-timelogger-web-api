@@ -83,12 +83,18 @@ export async function POST(
     // Validate project - must be assigned to user
     const { data: userProject, error: userProjectError } = await supabase
       .from('user_projects')
-      .select('projects(id, name, is_active)')
+      .select('project_id, projects(id, name, is_active)')
       .eq('user_id', desktopUser.id)
-      .eq('projects.id', projectId)
+      .eq('project_id', projectId)
       .single();
 
     if (userProjectError || !userProject || !userProject.projects) {
+      console.error('Project validation error:', {
+        userProjectError,
+        userProject,
+        userId: desktopUser.id,
+        projectId,
+      });
       return NextResponse.json(
         { message: 'Project not assigned to user or not found' },
         { status: 404 }
@@ -102,29 +108,33 @@ export async function POST(
       );
     }
 
-    // Validate task - must be assigned to user and belong to the project
-    const { data: userTask, error: userTaskError } = await supabase
-      .from('user_tasks')
-      .select('tasks(id, name, project_id, is_active)')
-      .eq('user_id', desktopUser.id)
-      .eq('tasks.id', taskId)
+    // Validate task - must exist, belong to the project, and be active
+    const { data: task, error: taskError } = await supabase
+      .from('tasks')
+      .select('id, name, project_id, is_active')
+      .eq('id', taskId)
       .single();
 
-    if (userTaskError || !userTask || !userTask.tasks) {
+    if (taskError || !task) {
+      console.error('Task validation error:', {
+        taskError,
+        task,
+        taskId,
+      });
       return NextResponse.json(
-        { message: 'Task not assigned to user or not found' },
+        { message: 'Task not found' },
         { status: 404 }
       );
     }
 
-    if (!userTask.tasks.is_active) {
+    if (!task.is_active) {
       return NextResponse.json(
         { message: 'Task is not active' },
         { status: 400 }
       );
     }
 
-    if (userTask.tasks.project_id !== projectId) {
+    if (task.project_id !== projectId) {
       return NextResponse.json(
         { message: 'Task does not belong to the specified project' },
         { status: 400 }

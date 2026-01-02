@@ -46,8 +46,6 @@ export interface CreateUserData {
   accountNonLocked?: boolean;
   companyId?: number | null;
   projectIds?: string[];
-  defaultProjectId?: string;
-  defaultTaskId?: string;
 }
 
 export const createUser = async (userData: CreateUserData): Promise<User> => {
@@ -64,8 +62,6 @@ export interface UpdateUserData {
   accountNonLocked?: boolean;
   companyId?: number | null;
   projectIds?: string[];
-  defaultProjectId?: string;
-  defaultTaskId?: string;
 }
 
 export const updateUser = async (userId: string, userData: UpdateUserData): Promise<User> => {

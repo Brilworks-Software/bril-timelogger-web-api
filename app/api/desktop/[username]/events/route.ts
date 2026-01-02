@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { getAuthUser, requireAuth } from '@/lib/auth';
+import { authenticateDesktopRequest } from '@/lib/auth/desktop';
 
 // POST /api/desktop/{username}/events - Process a single event
 export async function POST(
@@ -8,9 +8,6 @@ export async function POST(
   { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const user = await getAuthUser(request);
-    requireAuth(user);
-
     // Await params (Next.js 15+ requirement)
     const { username } = await params;
 
@@ -24,19 +21,13 @@ export async function POST(
       );
     }
 
-    const supabase = createServerClient();
-
-    // Get user
-    const { data: dbUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (userError || !dbUser) {
+    // Authenticate with fallback support for expired tokens
+    // If sessionId is provided, use it for fallback auth
+    const authResult = await authenticateDesktopRequest(request, username, sessionId || null);
+    if (!authResult.success) {
       return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
+        { message: authResult.error || 'Authentication failed' },
+        { status: authResult.status || 401 }
       );
     }
 
@@ -53,13 +44,15 @@ export async function POST(
       );
     }
 
+    const supabase = createServerClient();
+
     // If sessionId is provided, verify it belongs to user
     if (sessionId) {
       const { data: session, error: sessionError } = await supabase
         .from('tracker_sessions')
         .select('id, user_id')
         .eq('id', sessionId)
-        .eq('user_id', dbUser.id)
+        .eq('user_id', authResult.user.id)
         .single();
 
       if (sessionError || !session) {
@@ -76,7 +69,7 @@ export async function POST(
       .from('tracker_activity_logs')
       .insert({
         session_id: sessionId || null,
-        user_id: dbUser.id,
+        user_id: authResult.user.id,
         activity_type: eventType,
         description: JSON.stringify({ eventId, payload }),
         timestamp: eventTimestamp.toISOString(),

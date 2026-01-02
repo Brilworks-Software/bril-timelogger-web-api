@@ -38,13 +38,13 @@ api.interceptors.request.use(
     const delayMs = loadingManager.getDelay();
     await delay(delayMs);
 
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Ensure token is properly formatted
-      const cleanToken = token.replace(/^"|"$/g, ''); // Remove any quotes
-      config.headers.Authorization = `Bearer ${cleanToken}`;
-    }
-    return config;
+  const token = localStorage.getItem('token');
+  if (token) {
+    // Ensure token is properly formatted
+    const cleanToken = token.replace(/^"|"$/g, ''); // Remove any quotes
+    config.headers.Authorization = `Bearer ${cleanToken}`;
+  }
+  return config;
   },
   (error) => {
     // End loading on request error

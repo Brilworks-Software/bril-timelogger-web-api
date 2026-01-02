@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { getAuthUser, requireAuth } from '@/lib/auth';
+import { authenticateDesktopRequest, validateDesktopUser } from '@/lib/auth/desktop';
 
 // POST /api/desktop/{username}/sessions/idle/{idleEventId}/resolve - Resolve an idle event
 export async function POST(
@@ -8,25 +8,25 @@ export async function POST(
   { params }: { params: Promise<{ username: string; idleEventId: string }> }
 ) {
   try {
-    const user = await getAuthUser(request);
-    requireAuth(user);
-
     // Await params (Next.js 15+ requirement)
     const { username, idleEventId } = await params;
 
+    // First get the idle event to find its sessionId for fallback auth
     const supabase = createServerClient();
-
-    // Get user
-    const { data: dbUser, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
+    const { data: idleEventForAuth } = await supabase
+      .from('tracker_idle_events')
+      .select('session_id')
+      .eq('id', idleEventId)
       .single();
 
-    if (userError || !dbUser) {
+    const sessionIdForAuth = idleEventForAuth?.session_id || null;
+
+    // Authenticate with fallback support for expired tokens
+    const authResult = await authenticateDesktopRequest(request, username, sessionIdForAuth);
+    if (!authResult.success) {
       return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
+        { message: authResult.error || 'Authentication failed' },
+        { status: authResult.status || 401 }
       );
     }
 
@@ -44,7 +44,7 @@ export async function POST(
         )
       `)
       .eq('id', idleEventId)
-      .eq('tracker_sessions.user_id', dbUser.id)
+      .eq('tracker_sessions.user_id', authResult.user.id)
       .single();
 
     if (idleError || !idleEvent) {
