@@ -21,22 +21,83 @@ async function validateDesktopUser(username: string, request: NextRequest) {
     return { valid: false, error: 'Account is locked', status: 403 };
   }
 
-  // Check for active desktop sessions (if X-Client-Type is desktop)
-  const clientType = request.headers.get('X-Client-Type');
-  if (clientType?.toLowerCase() === 'desktop') {
-    const { data: activeSessions } = await supabase
-      .from('tracker_sessions')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('session_status', 'ACTIVE')
-      .limit(1);
+  return { valid: true, user };
+}
 
-    if (activeSessions && activeSessions.length > 0) {
-      return { valid: false, error: 'Active session already exists', status: 409 };
-    }
+// Helper function to force stop active sessions using last heartbeat time
+async function forceStopActiveSessions(userId: string) {
+  const supabase = createServerClient();
+  
+  // Find all active sessions for the user with updated_at (last heartbeat)
+  const { data: activeSessions, error: sessionsError } = await supabase
+    .from('tracker_sessions')
+    .select('id, start_time, updated_at, idle_duration')
+    .eq('user_id', userId)
+    .eq('session_status', 'ACTIVE');
+
+  if (sessionsError || !activeSessions || activeSessions.length === 0) {
+    return; // No active sessions to stop
   }
 
-  return { valid: true, user };
+  // Force stop each active session
+  for (const session of activeSessions) {
+    const startTime = new Date(session.start_time);
+    // Use updated_at (last heartbeat time) as end_time, or current time if updated_at is not available
+    const lastHeartbeat = session.updated_at ? new Date(session.updated_at) : new Date();
+    const endTime = lastHeartbeat;
+    const totalDuration = endTime.getTime() - startTime.getTime();
+
+    // Close any active pauses
+    const { data: activePauses } = await supabase
+      .from('tracker_pauses')
+      .select('id, start_time')
+      .eq('session_id', session.id)
+      .is('end_time', null);
+
+    if (activePauses && activePauses.length > 0) {
+      const pauseEndTime = endTime.toISOString();
+      for (const pause of activePauses) {
+        const pauseStartTime = new Date(pause.start_time);
+        const pauseDuration = endTime.getTime() - pauseStartTime.getTime();
+        
+        await supabase
+          .from('tracker_pauses')
+          .update({
+            end_time: pauseEndTime,
+            duration: pauseDuration,
+          })
+          .eq('id', pause.id);
+      }
+    }
+
+    // Get total pause duration for this session
+    const { data: pauses } = await supabase
+      .from('tracker_pauses')
+      .select('duration')
+      .eq('session_id', session.id)
+      .not('duration', 'is', null);
+
+    let totalPauseDuration = 0;
+    if (pauses) {
+      totalPauseDuration = pauses.reduce((sum, pause) => sum + (pause.duration || 0), 0);
+    }
+
+    // Calculate active_duration: total_duration - idle_duration - total_pause_duration
+    const idleDuration = session.idle_duration || 0;
+    const activeDuration = Math.max(0, totalDuration - idleDuration - totalPauseDuration);
+
+    // Update session with force stop
+    await supabase
+      .from('tracker_sessions')
+      .update({
+        session_status: 'STOPPED',
+        end_time: endTime.toISOString(),
+        logout_reason: 'FORCE_STOPPED_NEW_SESSION_STARTED',
+        total_duration: totalDuration,
+        active_duration: activeDuration,
+      })
+      .eq('id', session.id);
+  }
 }
 
 // POST /api/desktop/{username}/sessions/start - Start a new session
@@ -62,7 +123,7 @@ export async function POST(
 
     const desktopUser = validation.user;
     const body = await request.json();
-    const { projectId, taskId, desktopAppVersion } = body;
+    const { projectId, taskId, desktopAppVersion, forceStop } = body;
 
     if (!projectId) {
       return NextResponse.json(
@@ -79,6 +140,11 @@ export async function POST(
     }
 
     const supabase = createServerClient();
+
+    // If forceStop is true, stop any active sessions before starting a new one
+    if (forceStop === true) {
+      await forceStopActiveSessions(desktopUser.id);
+    }
 
     // Validate project - must be assigned to user
     const { data: userProject, error: userProjectError } = await supabase
