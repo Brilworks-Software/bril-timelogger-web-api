@@ -5,11 +5,14 @@ import { getAuthUser, requireAuth } from '@/lib/auth';
 // GET - Get timeline for a user (can be own timeline or admin viewing another user)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { username: string } }
+  { params }: { params: Promise<{ username: string }> }
 ) {
   try {
     const user = await getAuthUser(request);
     requireAuth(user);
+
+    // Await params (Next.js 15+ requirement)
+    const { username } = await params;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '0');
@@ -25,7 +28,7 @@ export async function GET(
     const { data: targetUser, error: userError } = await supabase
       .from('users')
       .select('id, username, name, email')
-      .eq('username', params.username)
+      .eq('username', username)
       .single();
 
     if (userError || !targetUser) {
