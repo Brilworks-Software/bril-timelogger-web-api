@@ -5,36 +5,44 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  // const supabase = createServerClient(
+  //   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  //   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  //     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+  //   {
+  //     cookies: {
+  //       getAll() {
+  //         return request.cookies.getAll();
+  //       },
+  //       setAll(cookiesToSet: any) {
+  //         cookiesToSet.forEach(({ name, value }: { name: string; value: string }) =>
+  //           request.cookies.set(name, value)
+  //         );
+  //         supabaseResponse = NextResponse.next({
+  //           request,
+  //         });
+  //         cookiesToSet.forEach(
+  //           ({ name, value, options }: { name: string; value: string; options?: any }) =>
+  //             supabaseResponse.cookies.set(name, value, options)
+  //         );
+  //       },
+  //     },
+  //   }
+  // );
 
   // Check for JWT token in cookies for authentication
-  const token = request.cookies.get('token')?.value;
-
+  let tokenCookie = request.cookies.get('token');
+  let tokenValue: string | undefined = tokenCookie?.value;
+  if (!tokenValue) {
+    // Try to extract token from Authorization header
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      tokenValue = authHeader.substring(7);
+    }
+  }
   // If no token and not on login/auth page, redirect to login
   if (
-    !token &&
+    !tokenValue &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/api/auth')
   ) {
@@ -45,4 +53,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
-

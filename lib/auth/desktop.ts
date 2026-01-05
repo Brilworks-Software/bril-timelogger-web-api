@@ -7,7 +7,7 @@ import { getAuthUser, requireAuth } from '@/lib/auth';
  */
 export async function validateDesktopUser(username: string) {
   const supabase = createServerClient();
-  
+
   const { data: user, error: userError } = await supabase
     .from('users')
     .select('id, username, account_non_locked')
@@ -30,7 +30,7 @@ export async function authenticateViaSessionOwnership(
   sessionId: string
 ): Promise<{ valid: boolean; user?: any; error?: string; status?: number }> {
   const supabase = createServerClient();
-  
+
   // Validate user exists and is not locked
   const validation = await validateDesktopUser(username);
   if (!validation.valid) {
@@ -55,7 +55,7 @@ export async function authenticateViaSessionOwnership(
 /**
  * Authenticates a desktop API request with fallback support
  * Tries JWT authentication first, falls back to username/session ownership verification
- * 
+ *
  * @param request - The Next.js request object
  * @param username - Username from URL path
  * @param sessionId - Optional sessionId from URL path or query params
@@ -65,10 +65,10 @@ export async function authenticateDesktopRequest(
   request: NextRequest,
   username: string,
   sessionId?: string | null
-): Promise<{ 
-  success: boolean; 
-  user?: any; 
-  error?: string; 
+): Promise<{
+  success: boolean;
+  user?: any;
+  error?: string;
   status?: number;
 }> {
   // Try JWT authentication first
@@ -99,7 +99,7 @@ export async function authenticateDesktopRequest(
         return {
           success: false,
           error: fallbackAuth.error || 'Authentication failed',
-          status: fallbackAuth.status || 401
+          status: fallbackAuth.status || 401,
         };
       }
       authenticatedUser = fallbackAuth.user;
@@ -112,7 +112,7 @@ export async function authenticateDesktopRequest(
         return {
           success: false,
           error: validation.error || 'Authentication failed',
-          status: validation.status || 401
+          status: validation.status || 401,
         };
       }
       authenticatedUser = validation.user;
@@ -121,7 +121,7 @@ export async function authenticateDesktopRequest(
 
   return {
     success: true,
-    user: authenticatedUser
+    user: authenticatedUser,
   };
 }
 
