@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { format, parseISO } from 'date-fns';
 import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
+import 'react-datepicker/dist/react-datepicker.css';
 import { Autocomplete, TextField, CircularProgress, Modal, IconButton } from '@mui/material';
-import { Close as CloseIcon, NavigateNext as NextIcon, NavigateBefore as PrevIcon } from '@mui/icons-material';
+import {
+  Close as CloseIcon,
+  NavigateNext as NextIcon,
+  NavigateBefore as PrevIcon,
+} from '@mui/icons-material';
 import api from '../../services/api';
 import '../../css/globals.css';
 import { useAuth } from '../../hooks/useAuth';
@@ -20,12 +24,23 @@ interface UserSummary {
 }
 
 interface Screenshot {
-  id: number;
-  fileUrl: string;
+  id: string;
+  sessionId: string;
+  userId: string;
+  imageUrl: string;
   capturedAt: string;
-  sessionId: number;
-  sessionStartTime?: string;
-  sessionEndTime?: string;
+  session: {
+    startTime: string;
+    endTime?: string;
+    project?: {
+      id: string;
+      name: string;
+    };
+    task?: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 interface ScreenshotResponse {
@@ -74,7 +89,7 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
   onNext,
   onPrev,
   hasNext,
-  hasPrev
+  hasPrev,
 }) => {
   const { t } = useTranslation();
 
@@ -98,12 +113,12 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.9)'
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
       }}
       aria-label={t('userScreenshots.screenshotModal')}
       onKeyDown={handleKeyDown}
     >
-      <div 
+      <div
         style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}
         role="dialog"
         aria-modal="true"
@@ -117,14 +132,14 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
             color: 'white',
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
             '&:hover': {
-              backgroundColor: 'rgba(0, 0, 0, 0.7)'
-            }
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            },
           }}
           aria-label={t('userScreenshots.closeModal')}
         >
           <CloseIcon />
         </IconButton>
-        
+
         {hasPrev && (
           <IconButton
             onClick={onPrev}
@@ -136,15 +151,15 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
               color: 'white',
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
               '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.7)'
-              }
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              },
             }}
             aria-label={t('userScreenshots.previousScreenshot')}
           >
             <PrevIcon />
           </IconButton>
         )}
-        
+
         {hasNext && (
           <IconButton
             onClick={onNext}
@@ -156,8 +171,8 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
               color: 'white',
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
               '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.7)'
-              }
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              },
             }}
             aria-label={t('userScreenshots.nextScreenshot')}
           >
@@ -166,14 +181,16 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
         )}
 
         <img
-          src={screenshot.fileUrl}
+          src={screenshot.imageUrl}
           alt={t('userScreenshots.screenshotFrom', {
-            time: screenshot.capturedAt ? format(parseISO(screenshot.capturedAt), 'HH:mm:ss') : t('userScreenshots.noTime')
+            time: screenshot.capturedAt
+              ? format(parseISO(screenshot.capturedAt), 'HH:mm:ss')
+              : t('userScreenshots.noTime'),
           })}
           style={{
             maxWidth: '100%',
             maxHeight: '90vh',
-            objectFit: 'contain'
+            objectFit: 'contain',
           }}
         />
       </div>
@@ -206,8 +223,8 @@ const AdminUserScreenshots: React.FC = () => {
       setLoadingUsers(true);
       const response = await api.get<UserSummary[]>('/admin/users/search', {
         params: {
-          query: query
-        }
+          query: query,
+        },
       });
       setUsers(response.data);
     } catch (err) {
@@ -240,7 +257,7 @@ const AdminUserScreenshots: React.FC = () => {
       const params = new URLSearchParams({
         page: page.toString(),
         size: rowsPerPage.toString(),
-        username: selectedUserData.username
+        username: selectedUserData.username,
       });
       if (selectedDate) {
         const dayStart = new Date(selectedDate);
@@ -286,7 +303,7 @@ const AdminUserScreenshots: React.FC = () => {
         <div style={{ width: '70%' }}>
           <Autocomplete
             options={users}
-            getOptionLabel={(option) => `${option.name} (${option.username})`}
+            getOptionLabel={option => `${option.name} (${option.username})`}
             loading={loadingUsers}
             value={selectedUserData}
             onChange={(_, newValue) => {
@@ -298,7 +315,7 @@ const AdminUserScreenshots: React.FC = () => {
                 setSearchQuery(newInputValue);
               }
             }}
-            renderInput={(params) => (
+            renderInput={params => (
               <TextField
                 {...params}
                 label={t('userScreenshots.searchUser')}
@@ -313,7 +330,7 @@ const AdminUserScreenshots: React.FC = () => {
                     </>
                   ),
                 }}
-                onKeyDown={(e) => {
+                onKeyDown={e => {
                   if (e.key === 'Enter' && searchQuery.length > 0) {
                     fetchUsers(searchQuery);
                   }
@@ -370,7 +387,7 @@ const UserScreenshotsView: React.FC = () => {
       const params = new URLSearchParams({
         page: page.toString(),
         size: rowsPerPage.toString(),
-        username: user.username
+        username: user.username,
       });
       if (selectedDate) {
         const dayStart = new Date(selectedDate);
@@ -406,7 +423,9 @@ const UserScreenshotsView: React.FC = () => {
   return (
     <div className="main-content">
       <h1>{t('userScreenshots.title')}</h1>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-lg)' }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-lg)' }}
+      >
         <div style={{ width: '30%' }}>
           <DatePicker
             selected={selectedDate}
@@ -459,7 +478,11 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
   const [currentSessionIndex, setCurrentSessionIndex] = useState<number>(0);
   const [currentScreenshotIndex, setCurrentScreenshotIndex] = useState<number>(0);
 
-  const handleScreenshotClick = (screenshot: Screenshot, sessionIndex: number, screenshotIndex: number) => {
+  const handleScreenshotClick = (
+    screenshot: Screenshot,
+    sessionIndex: number,
+    screenshotIndex: number
+  ) => {
     setSelectedScreenshot(screenshot);
     setCurrentSessionIndex(sessionIndex);
     setCurrentScreenshotIndex(screenshotIndex);
@@ -467,7 +490,7 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
 
   const handleNext = () => {
     const sessions = Object.entries(
-      screenshots.reduce((acc: Record<number, Screenshot[]>, shot) => {
+      screenshots.reduce((acc: Record<string, Screenshot[]>, shot) => {
         if (!acc[shot.sessionId]) acc[shot.sessionId] = [];
         acc[shot.sessionId].push(shot);
         return acc;
@@ -487,7 +510,7 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
 
   const handlePrev = () => {
     const sessions = Object.entries(
-      screenshots.reduce((acc: Record<number, Screenshot[]>, shot) => {
+      screenshots.reduce((acc: Record<string, Screenshot[]>, shot) => {
         if (!acc[shot.sessionId]) acc[shot.sessionId] = [];
         acc[shot.sessionId].push(shot);
         return acc;
@@ -525,7 +548,7 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
   }
 
   const sessions = Object.entries(
-    screenshots.reduce((acc: Record<number, Screenshot[]>, shot) => {
+    screenshots.reduce((acc: Record<string, Screenshot[]>, shot) => {
       if (!acc[shot.sessionId]) acc[shot.sessionId] = [];
       acc[shot.sessionId].push(shot);
       return acc;
@@ -536,19 +559,32 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
     <>
       {sessions.map(([sessionId, sessionShots], sessionIndex) => {
         const firstShot = sessionShots[0];
-        const sessionStartTime = firstShot?.sessionStartTime;
-        const sessionEndTime = firstShot?.sessionEndTime;
-        
+        const sessionStartTime = firstShot?.session?.startTime;
+        const sessionEndTime = firstShot?.session?.endTime;
+
         return (
           <div key={sessionId} style={{ marginBottom: 'var(--spacing-xl)' }}>
-            <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-md)', color: 'var(--color-text-light)' }}>
+            <div
+              style={{
+                textAlign: 'center',
+                marginBottom: 'var(--spacing-md)',
+                color: 'var(--color-text-light)',
+              }}
+            >
               <p>
-                {t('userScreenshots.session')} {sessionId} | 
-                {t('userScreenshots.start')}: {sessionStartTime ? format(parseISO(sessionStartTime), 'MMM d, yyyy HH:mm') : 'N/A'} | 
-                {t('userScreenshots.end')}: {sessionEndTime ? format(parseISO(sessionEndTime), 'MMM d, yyyy HH:mm') : 'N/A'}
+                {t('userScreenshots.session')} {sessionId} |{t('userScreenshots.start')}:{' '}
+                {sessionStartTime ? format(parseISO(sessionStartTime), 'MMM d, yyyy HH:mm') : 'N/A'}{' '}
+                |{t('userScreenshots.end')}:{' '}
+                {sessionEndTime ? format(parseISO(sessionEndTime), 'MMM d, yyyy HH:mm') : 'N/A'}
               </p>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 'var(--spacing-md)' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                gap: 'var(--spacing-md)',
+              }}
+            >
               {sessionShots.map((screenshot, screenshotIndex) => (
                 <div key={screenshot.id}>
                   <div
@@ -560,20 +596,20 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
                       flexDirection: 'column',
                       justifyContent: 'flex-end',
                       padding: 'var(--spacing-sm)',
-                      transition: 'transform 0.2s'
+                      transition: 'transform 0.2s',
                     }}
                     onClick={() => handleScreenshotClick(screenshot, sessionIndex, screenshotIndex)}
-                    onMouseEnter={(e) => {
+                    onMouseEnter={e => {
                       e.currentTarget.style.transform = 'scale(1.02)';
                     }}
-                    onMouseLeave={(e) => {
+                    onMouseLeave={e => {
                       e.currentTarget.style.transform = 'scale(1)';
                     }}
                   >
                     <div style={{ position: 'relative', paddingTop: '56.25%' }}>
-                      {screenshot.fileUrl ? (
+                      {screenshot.imageUrl ? (
                         <img
-                          src={screenshot.fileUrl}
+                          src={screenshot.imageUrl}
                           alt={`Screenshot from ${screenshot.capturedAt ? format(parseISO(screenshot.capturedAt), 'HH:mm:ss') : 'No time'}`}
                           style={{
                             position: 'absolute',
@@ -582,9 +618,9 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
                             width: '100%',
                             height: '100%',
                             objectFit: 'cover',
-                            borderRadius: 'var(--radius-lg)'
+                            borderRadius: 'var(--radius-lg)',
                           }}
-                          onError={(e) => {
+                          onError={e => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
                             const parent = target.parentElement;
@@ -614,38 +650,55 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
                           }}
                         />
                       ) : (
-                        <div style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          backgroundColor: 'var(--color-background)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 'var(--radius-lg)'
-                        }}>
-                          <svg 
-                            style={{ 
-                              width: '48px', 
-                              height: '48px', 
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            backgroundColor: 'var(--color-background)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 'var(--radius-lg)',
+                          }}
+                        >
+                          <svg
+                            style={{
+                              width: '48px',
+                              height: '48px',
                               color: 'var(--color-text-light)',
-                              marginBottom: 'var(--spacing-sm)'
-                            }} 
-                            fill="none" 
-                            stroke="currentColor" 
+                              marginBottom: 'var(--spacing-sm)',
+                            }}
+                            fill="none"
+                            stroke="currentColor"
                             viewBox="0 0 24 24"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
                           </svg>
-                          <p style={{ color: 'var(--color-text-light)' }}>{t('userScreenshots.noScreenshotAvailable')}</p>
+                          <p style={{ color: 'var(--color-text-light)' }}>
+                            {t('userScreenshots.noScreenshotAvailable')}
+                          </p>
                         </div>
                       )}
                     </div>
-                    <p style={{ marginTop: 'var(--spacing-sm)', color: 'var(--color-text-light)', fontSize: 'var(--font-size-sm)' }}>
-                      {screenshot.capturedAt ? format(parseISO(screenshot.capturedAt), 'HH:mm:ss') : 'No time'}
+                    <p
+                      style={{
+                        marginTop: 'var(--spacing-sm)',
+                        color: 'var(--color-text-light)',
+                        fontSize: 'var(--font-size-sm)',
+                      }}
+                    >
+                      {screenshot.capturedAt
+                        ? format(parseISO(screenshot.capturedAt), 'HH:mm:ss')
+                        : 'No time'}
                     </p>
                   </div>
                 </div>
@@ -661,11 +714,24 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
         screenshot={selectedScreenshot}
         onNext={handleNext}
         onPrev={handlePrev}
-        hasNext={currentSessionIndex < sessions.length - 1 || (currentSessionIndex === sessions.length - 1 && currentScreenshotIndex < sessions[currentSessionIndex][1].length - 1)}
-        hasPrev={currentSessionIndex > 0 || (currentSessionIndex === 0 && currentScreenshotIndex > 0)}
+        hasNext={
+          currentSessionIndex < sessions.length - 1 ||
+          (currentSessionIndex === sessions.length - 1 &&
+            currentScreenshotIndex < sessions[currentSessionIndex][1].length - 1)
+        }
+        hasPrev={
+          currentSessionIndex > 0 || (currentSessionIndex === 0 && currentScreenshotIndex > 0)
+        }
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--spacing-md)' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: 'var(--spacing-md)',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
           <span>{t('userScreenshots.rowsPerPage')}:</span>
           <select
@@ -674,7 +740,7 @@ const ScreenshotsContent: React.FC<ScreenshotsContentProps> = ({
             onChange={onRowsPerPageChange}
             style={{ width: 'auto' }}
           >
-            {[10, 20, 30, 40].map((value) => (
+            {[10, 20, 30, 40].map(value => (
               <option key={value} value={value}>
                 {value}
               </option>
@@ -709,4 +775,4 @@ const UserScreenshots: React.FC = () => {
   return isAdmin ? <AdminUserScreenshots /> : <UserScreenshotsView />;
 };
 
-export default UserScreenshots; 
+export default UserScreenshots;

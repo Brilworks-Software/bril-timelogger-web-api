@@ -15,7 +15,7 @@ import UserScreenshots from './components/TimeTracking/UserScreenshots';
 import TimeTrackingSummaryDashboard from './components/TimeTracking/TimeTrackingSummaryDashboard';
 import ReportsTab from './components/TimeTracking/Reports/ReportsTab';
 import DashboardLayout from './partials/Header';
-import Login from './pages/Login';
+import Login from './login-pages/Login';
 import TimeTrackingConditional from './components/TimeTracking/TimeTrackingConditional';
 import { ToastProvider } from './contexts/ToastContext';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -30,30 +30,30 @@ const App: React.FC = () => {
           <CssBaseline />
           <QueryClientProvider client={queryClient}>
             <LoadingProvider>
-            <ToastProvider>
-              <Router>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route element={<DashboardLayout />}>
-                    {/* Time Tracker's Summary */}
-                    <Route path="/time-tracking" element={<TimeTrackingSummary />}>
-                      <Route index element={<TimeTrackingConditional />} />
-                      <Route path="summary" element={<TimeTrackingSummaryDashboard />} />
-                      <Route path="screenshots" element={<UserScreenshots />} />
-                      <Route path="users" element={<UserList />} />
-                      <Route path="activity" element={<UserActivity />} />
-                      <Route path="reports" element={<ReportsTab />} />
+              <ToastProvider>
+                <Router>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route element={<DashboardLayout />}>
+                      {/* Time Tracker's Summary */}
+                      <Route path="/time-tracking" element={<TimeTrackingSummary />}>
+                        <Route index element={<TimeTrackingConditional />} />
+                        <Route path="summary" element={<TimeTrackingSummaryDashboard />} />
+                        <Route path="screenshots" element={<UserScreenshots />} />
+                        <Route path="users" element={<UserList />} />
+                        <Route path="activity" element={<UserActivity />} />
+                        <Route path="reports" element={<ReportsTab />} />
+                      </Route>
+
+                      {/* Users */}
+                      <Route path="/users" element={<Users />} />
+
+                      {/* Default redirect to dashboard */}
+                      <Route path="/" element={<Navigate to="/time-tracking" replace />} />
                     </Route>
-
-                    {/* Users */}
-                    <Route path="/users" element={<Users />} />
-
-                    {/* Default redirect to dashboard */}
-                    <Route path="/" element={<Navigate to="/time-tracking" replace />} />
-                  </Route>
-                </Routes>
-              </Router>
-            </ToastProvider>
+                  </Routes>
+                </Router>
+              </ToastProvider>
             </LoadingProvider>
           </QueryClientProvider>
         </ThemeProvider>
